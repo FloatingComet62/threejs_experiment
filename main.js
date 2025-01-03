@@ -4,6 +4,8 @@ const FOV = 75;
 const VIEW_RANGE = [0.1, 1000];
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x23032e);
+
 const camera = new THREE.PerspectiveCamera(
     FOV,
     window.innerWidth / window.innerHeight,
@@ -54,8 +56,8 @@ const meshes = {
         new THREE.MeshBasicMaterial({ color: "red", wireframe: true })
     ),
     "circle": new THREE.Mesh(
-        new THREE.CircleGeometry(1, 3),
-        new THREE.MeshBasicMaterial({ color: "blue" })
+        new THREE.CircleGeometry(0.25, 3),
+        new THREE.MeshBasicMaterial({ color: 0xaa8844 })
     )
 };
 
@@ -70,6 +72,7 @@ function createObject(meshName) {
 }
 
 const polygon = createObject("circle");
+polygon.position.set(0, 0, 2);
 
 /**
  * @param {string} meshName
@@ -98,7 +101,13 @@ function animate(time) {
         cube.position.y = Math.sin(timeInSeconds + index) * 2;
     });
     polygon.geometry.dispose();
-    polygon.geometry = new THREE.CircleGeometry(1, 3 + Math.floor(timeInSeconds) % 32);
+    polygon.geometry = new THREE.CircleGeometry(
+        0.25,
+        // 3 + Math.floor(timeInSeconds) % 32,
+        32,
+        0,
+        7*Math.PI/4 + Math.PI/4 * Math.sin(timeInSeconds * 10),
+    );
 
     renderer.render(scene, camera);
 }
