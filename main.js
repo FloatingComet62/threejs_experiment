@@ -4,7 +4,7 @@ const FOV = 75;
 const VIEW_RANGE = [0.1, 1000];
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x23032e);
+scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(
     FOV,
@@ -12,6 +12,8 @@ const camera = new THREE.PerspectiveCamera(
     VIEW_RANGE[0],
     VIEW_RANGE[1]
 );
+camera.position.z = 5;
+camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -20,94 +22,88 @@ document.body.appendChild(renderer.domElement);
 
 {
     const color = 0xFFFFFF;
-    const intensity = 3;
-    const light = new THREE.DirectionalLight(color, intensity);
-    light.position.set(-1, 2, 4);
+    const intensity = 50;
+    const light = new THREE.PointLight(color, intensity);
+    light.position.set(0, 0, 0);
     scene.add(light);
 }
 
 const meshes = {
-    // a material with a different color for each side of the cube
-    "cube": new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        [
-            new THREE.MeshPhongMaterial({ color: 0x00ff00 }),
-            new THREE.MeshPhongMaterial({ color: 0xff0000 }),
-            new THREE.MeshPhongMaterial({ color: 0x0000ff }),
-            new THREE.MeshPhongMaterial({ color: 0xffff00 }),
-            new THREE.MeshPhongMaterial({ color: 0x00ffff }),
-            new THREE.MeshPhongMaterial({ color: 0xff00ff })
-        ]
+    "sun": new THREE.Mesh(
+        new THREE.SphereGeometry(1, 4, 4),
+        new THREE.MeshPhongMaterial({ emissive: 0xFFFF00 })
     ),
-    "green_cube": new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshPhongMaterial({ color: 0x44aa88 })
+    "earth": new THREE.Mesh(
+        new THREE.SphereGeometry(0.1, 3, 3),
+        new THREE.MeshPhongMaterial({ color: 0x2233FF, emissive: 0x112244 })
     ),
-    "purple_cube": new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshPhongMaterial({ color: 0x8844aa })
+    "moon": new THREE.Mesh(
+        new THREE.SphereGeometry(0.05, 4, 4),
+        new THREE.MeshPhongMaterial({ color: 0x888888 })
     ),
-    "yellow_cube": new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshPhongMaterial({ color: 0xaa8844 })
+    "trail": new THREE.Mesh(
+        new THREE.CircleGeometry(0.01, 4),
+        new THREE.MeshBasicMaterial({ color: 0xFF0000 })
     ),
-    "wired_sphere": new THREE.Mesh(
-        new THREE.SphereGeometry(1, 16, 8),
-        new THREE.MeshBasicMaterial({ color: "red", wireframe: true })
-    ),
-    "circle": new THREE.Mesh(
-        new THREE.CircleGeometry(0.25, 3),
-        new THREE.MeshBasicMaterial({ color: 0xaa8844 })
-    )
 };
 
 /**
  * @param {string} meshName
+ * @param {THREE.Scene | THREE.Mesh | THREE.Object3D} targetScene
  */
-function createObject(meshName) {
+function createObject(meshName, targetScene = scene) {
     /** @type {THREE.Mesh} */
     const mesh = meshes[meshName].clone();
-    scene.add(mesh);
+    targetScene.add(mesh);
     return mesh;
 }
 
-const polygon = createObject("circle");
-polygon.position.set(0, 0, 2);
+const solarSystem = new THREE.Object3D();
+scene.add(solarSystem);
+
+const sun = createObject("sun", solarSystem);
+
+const earthOrbit = new THREE.Object3D();
+earthOrbit.position.x = 2;
+solarSystem.add(earthOrbit);
+
+const earth = createObject("earth", earthOrbit);
+
+const moon = createObject("moon", earthOrbit);
+moon.position.x = 0.5;
+
+const trail = [];
 
 /**
- * @param {string} meshName
- * @param {number} xPosition
+ * @param {number} time
  */
-function configureCube(meshName, xPosition) {
-    const cube = createObject(meshName);
-    cube.position.set(xPosition, 0, 0);
-    return cube;
-}
-const cubes = [
-    configureCube("green_cube", 0),
-    configureCube("purple_cube", 2),
-    configureCube("yellow_cube", -2),
-];
 
-camera.position.z = 5;
+const SUN_ROTATION = 1;
+const EARTH_REVOLUTION = 1;
+const EARTH_ROTATION = 10;
+const MOON_REVOLUTION = 10;
+const MOON_ROTATION = 1;
+const TRAIL_LENGTH = 376;
 
 /**
  * @param {number} time
  */
 function animate(time) {
     const timeInSeconds = time / 1000;
-    cubes.forEach((cube, index) => {
-        cube.rotation.x = timeInSeconds / 2;
-        cube.position.y = Math.sin(timeInSeconds + index) * 2;
-    });
-    polygon.geometry.dispose();
-    polygon.geometry = new THREE.CircleGeometry(
-        0.25,
-        // 3 + Math.floor(timeInSeconds) % 32,
-        32,
-        0,
-        7*Math.PI/4 + Math.PI/4 * Math.sin(timeInSeconds * 10),
-    );
+
+    solarSystem.rotation.z = timeInSeconds * EARTH_REVOLUTION;
+    sun.rotation.z = timeInSeconds * SUN_ROTATION;
+
+    earthOrbit.rotation.z = timeInSeconds * MOON_REVOLUTION;
+    earth.rotation.z = timeInSeconds * EARTH_ROTATION;
+    moon.rotation.z = timeInSeconds * MOON_ROTATION;
+
+    const trailElement = createObject("trail");
+    trailElement.position.copy(moon.getWorldPosition(new THREE.Vector3()));
+    trail.push(trailElement);
+    if (trail.length > TRAIL_LENGTH) {
+        scene.remove(trail.shift());
+    }
 
     renderer.render(scene, camera);
 }
